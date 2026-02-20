@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>Task tester</title>
+<style>
+body {
+	font-family: Arial, sans-serif;
+	margin: 40px;
+}
+
+.row {
+	margin: 10px 0;
+}
+
+textarea {
+	width: 560px;
+	height: 160px;
+	font-size: 16px;
+}
+
+input, select {
+	font-size: 16px;
+	padding: 6px 8px;
+}
+
+button {
+	padding: 8px 14px;
+	font-size: 16px;
+	cursor: pointer;
+	margin-right: 10px;
+}
+
+.box {
+	margin-top: 24px;
+	padding: 16px;
+	border: 1px solid #ddd;
+	border-radius: 8px;
+	width: fit-content;
+}
+
+.label {
+	display: inline-block;
+	width: 120px;
+}
+
+#result, #statusResult {
+	margin-top: 10px;
+	font-weight: bold;
+	white-space: pre-wrap;
+}
+
+.hint {
+	color: #666;
+	font-size: 13px;
+	margin-top: 6px;
+}
+</style>
+</head>
+<body>
+
+	<h2>Тест страницы</h2>
+
+	<div class="box">
+		<h3>1) Создать задачу</h3>
+
+		<div class="row">
+			<textarea id="textInput" placeholder="Введите текст..."></textarea>
+		</div>
+
+		<div class="row">
+			<span class="label">Язык:</span> <select id="langSelect">
+				<option value="RU" selected>RU</option>
+				<option value="EN">EN</option>
+			</select>
+		</div>
+
+		<div class="row">
+			<button id="createBtn">Исправить ошибки</button>
+		</div>
+
+		<div id="result"></div>
+		<div class="hint">Отправляет POST /tasks (JSON: { text, lang })</div>
+	</div>
+
+	<div class="box">
+		<h3>2) Проверить статус по ID</h3>
+
+		<div class="row">
+			<span class="label">Task ID:</span> <input id="idInput" type="number"
+				min="1" placeholder="например 1" />
+			<button id="checkBtn">Проверить статус</button>
+		</div>
+
+		<div id="statusResult"></div>
+		<div class="hint">Отправляет GET /tasks/{id}/status</div>
+	</div>
+
+	<script>
+  document.getElementById("createBtn").addEventListener("click", createTask);
+  document.getElementById("checkBtn").addEventListener("click", checkTask);
+
+  async function createTask() {
+    const text = document.getElementById("textInput").value.trim();
+    const lang = document.getElementById("langSelect").value;
+    const resultEl = document.getElementById("result");
+
+    if (!text) {
+      resultEl.innerText = "Введите текст.";
+      return;
+    }
+
+    resultEl.innerText = "Создаю задачу...";
+
+    try {
+      const response = await fetch("/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, lang })
+      });
+
+      const body = await response.text();
+
+      if (response.ok) {
+        resultEl.innerText = "Задача создана. ID: " + body;
+        document.getElementById("idInput").value = body;
+      } else {
+        resultEl.innerText = "Ошибка " + response.status + "\n" + body;
+      }
+    } catch (e) {
+      console.error(e);
+      resultEl.innerText = "NetworkError: " + e;
+    }
+  }
+
+  async function checkTask() {
+    const id = document.getElementById("idInput").value.trim();
+    const statusEl = document.getElementById("statusResult");
+
+    if (!id) {
+      statusEl.innerText = "Введите ID.";
+      return;
+    }
+
+    statusEl.innerText = "Запрашиваю задачу...";
+
+    try {
+      const response = await fetch(`/tasks/${id}`, { method: "GET" });
+
+      // если не ок — покажем текст ошибки
+if (!response.ok) {
+  if (response.status === 404) {
+    statusEl.innerText = "Задача с таким ID не найдена.";
+  } else {
+    const errText = await response.text();
+    statusEl.innerText = "Ошибка " + response.status + "\n" + errText;
+  }
+  return;
+}
+      const task = await response.json(); 
+
+      if (!task || !task.status) {
+        statusEl.innerText = "Неожиданный ответ сервера.";
+        return;
+      }
+
+      if (task.status === "COMPLETED") {
+        statusEl.innerText = "Текст исправлен:\n\n" + (task.text ?? "");
+      } else if (task.status === "ACTIV") {
+        statusEl.innerText = "Задача ещё обрабатывается.";
+      } else if (task.status === "PROCESSING_ERROR") {
+        statusEl.innerText = "По независящим от нас причинам исправить текст не удалось.";
+      } else {
+        statusEl.innerText = "Неизвестный статус: " + task.status;
+      }
+
+    } catch (e) {
+      console.error(e);
+      statusEl.innerText = "NetworkError: " + e;
+    }
+  }
+</script>
+
+
+</body>
+</html>

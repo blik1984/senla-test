@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: test
+  datasource:
+   url: jdbc:postgresql://localhost:5432/testdb
+   username: postgres
+   password: 4980
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+server:
+  port: 8080
+logging:
+  level:
+    root: INFO
+    com.senla.test: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: INFO
